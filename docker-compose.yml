@@ -1,0 +1,478 @@
+name: iam-access-revocation-lab
+
+x-api: &api
+  build:
+    context: ./services/api
+  image: iam-access-revocation-lab-api:local
+  user: "1000:1000"
+  environment: &api-environment
+    OIDC_AUDIENCE: api
+    OIDC_ISSUER: https://auth.localhost/realms/company
+    OIDC_INTROSPECTION_CLIENT_ID: api
+    OIDC_INTROSPECTION_URL: http://keycloak:8080/realms/company/protocol/openid-connect/token/introspect
+    OIDC_JWKS_URL: http://keycloak:8080/realms/company/protocol/openid-connect/certs
+    WEBAPP_ORIGIN: https://app.localhost
+    BENCHMARK_API_SECRET: ${BENCHMARK_API_SECRET:-replace-with-generated-secret}
+  read_only: true
+  tmpfs:
+    - /tmp:uid=1000,gid=1000,mode=0700
+  cap_drop: ["ALL"]
+  security_opt:
+    - no-new-privileges:true
+  networks:
+    - edge
+    - identity
+  healthcheck:
+    test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+    interval: 3s
+    timeout: 2s
+    retries: 20
+    start_period: 5s
+  restart: unless-stopped
+
+# Persistent LDAP and Keycloak identity foundation. Browser traffic reaches
+# Keycloak only through Traefik HTTPS; PostgreSQL and LDAP stay internal.
+services:
+  ldap-volume-init:
+    image: &openldap-image ghcr.io/freifunkmuc/openldap-docker:2.6.10@sha256:07f2f4a06e7c02c807fa05b96be994c6c744f901417d71a0f3b931c30cf0e1b8
+    user: "0:0"
+    entrypoint: ["chown"]
+    command: ["-R", "911:911", "/var/lib/ldap"]
+    read_only: true
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "FOWNER"]
+    network_mode: none
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ldap-data:/var/lib/ldap
+    restart: "no"
+
+  ldap:
+    image: *openldap-image
+    depends_on:
+      ldap-volume-init:
+        condition: service_completed_successfully
+    entrypoint: ["/config/scripts/start.sh"]
+    environment:
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-replace-with-generated-secret}
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD:-replace-with-generated-secret}
+      LDAP_USER_PASSWORD: ${LDAP_USER_PASSWORD:-replace-with-generated-secret}
+    read_only: true
+    tmpfs:
+      - /etc/ldap/slapd.d:uid=911,gid=911,mode=0750
+      - /run/slapd:uid=911,gid=911,mode=0750
+      - /tmp:uid=911,gid=911,mode=0700
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ldap-data:/var/lib/ldap
+      - ./infra/ldap:/config:ro
+    networks:
+      - identity
+    healthcheck:
+      test: ["CMD", "ldapsearch", "-LLL", "-x", "-H", "ldap://127.0.0.1:1389", "-b", "", "-s", "base", "(objectClass=*)", "namingContexts"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 5s
+    stop_grace_period: 10s
+    restart: unless-stopped
+
+  ldap-seed:
+    image: *openldap-image
+    depends_on:
+      ldap:
+        condition: service_healthy
+    entrypoint: ["/config/scripts/seed-groups.sh"]
+    environment:
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-replace-with-generated-secret}
+    read_only: true
+    tmpfs:
+      - /tmp:uid=911,gid=911,mode=0700
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ldap-data:/var/lib/ldap
+      - ./infra/ldap:/config:ro
+    networks:
+      - identity
+    restart: "no"
+
+  postgres:
+    image: postgres:16.15-alpine3.24@sha256:ac838714b7d794185a866e5a6b479b954e7d8a070568aa0acac6fe07c3070bf5
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD:-replace-with-generated-secret}
+    read_only: true
+    tmpfs:
+      - /tmp:uid=70,gid=70,mode=0700
+      - /var/run/postgresql:uid=70,gid=70,mode=0750
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID"]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - keycloak-db:/var/lib/postgresql/data
+    networks:
+      - identity
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    restart: unless-stopped
+
+  keycloak:
+    image: &keycloak-image quay.io/keycloak/keycloak:26.8.2@sha256:4340d05ee7d15be34293868d495ac772d61f1a4d0e43d53bae2e75e2f05de185
+    command: ["start", "--import-realm"]
+    depends_on:
+      ldap:
+        condition: service_healthy
+      ldap-seed:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-replace-with-generated-secret}
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:-replace-with-generated-secret}
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: https://auth.localhost
+      KC_HOSTNAME_ADMIN: https://admin-auth.localhost
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_CACHE: local
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD:-replace-with-generated-secret}
+      JOB_CLIENT_SECRET: ${JOB_CLIENT_SECRET:-replace-with-generated-secret}
+      API_CLIENT_SECRET: ${API_CLIENT_SECRET:-replace-with-generated-secret}
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./infra/keycloak/realm.json:/opt/keycloak/data/import/company-realm.json:ro
+    networks:
+      - edge
+      - identity
+      - workload
+      - observability
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '200 OK' <&3"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  keycloak-config:
+    image: *keycloak-image
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    entrypoint: ["/config/verify-realm.sh"]
+    environment:
+      KC_ADMIN: ${KC_ADMIN:-admin}
+      KC_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-replace-with-generated-secret}
+    read_only: true
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=0700
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./infra/keycloak/scripts:/config:ro
+    networks:
+      - identity
+    restart: "no"
+
+  redis-volume-init:
+    image: &redis-image redis:8.2.11-alpine3.22@sha256:fe9daae35cd4fd6ec22416aa4fe0cf6b3e36741e06ff45b9986253fe2a81c041
+    user: "0:0"
+    entrypoint: ["chown"]
+    command: ["-R", "999:1000", "/data"]
+    read_only: true
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "FOWNER"]
+    network_mode: none
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - not-before-data:/data
+    restart: "no"
+
+  not-before-store:
+    image: *redis-image
+    user: "999:1000"
+    depends_on:
+      redis-volume-init:
+        condition: service_completed_successfully
+    entrypoint: ["/config/start.sh"]
+    environment:
+      NOT_BEFORE_REDIS_PASSWORD: ${NOT_BEFORE_REDIS_PASSWORD:-replace-with-generated-secret}
+    read_only: true
+    tmpfs:
+      - /tmp:uid=999,gid=1000,mode=0700
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - not-before-data:/data
+      - ./infra/redis:/config:ro
+    networks:
+      - application
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$${NOT_BEFORE_REDIS_PASSWORD} redis-cli ping | grep -q PONG"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 3s
+    restart: unless-stopped
+
+  api-local:
+    <<: *api
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      keycloak-config:
+        condition: service_completed_successfully
+      not-before-store:
+        condition: service_healthy
+    environment:
+      <<: *api-environment
+      NOT_BEFORE_REDIS_PASSWORD: ${NOT_BEFORE_REDIS_PASSWORD:-replace-with-generated-secret}
+      NOT_BEFORE_REDIS_URL: redis://not-before-store:6379
+      OFFBOARDING_API_SECRET: ${OFFBOARDING_API_SECRET:-replace-with-generated-secret}
+      VALIDATION_MODE: local
+    networks:
+      - edge
+      - application
+      - identity
+      - observability
+
+  api-introspection:
+    <<: *api
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      keycloak-config:
+        condition: service_completed_successfully
+    environment:
+      <<: *api-environment
+      API_CLIENT_SECRET: ${API_CLIENT_SECRET:-replace-with-generated-secret}
+      VALIDATION_MODE: introspection
+    networks:
+      - edge
+      - identity
+      - workload
+      - observability
+
+  api-cached-introspection:
+    <<: *api
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      keycloak-config:
+        condition: service_completed_successfully
+    environment:
+      <<: *api-environment
+      API_CLIENT_SECRET: ${API_CLIENT_SECRET:-replace-with-generated-secret}
+      VALIDATION_MODE: cached-introspection
+    networks:
+      - edge
+      - identity
+      - workload
+      - observability
+
+  prometheus:
+    image: prom/prometheus:v3.15.1@sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2
+    user: "65534:65534"
+    depends_on:
+      api-local:
+        condition: service_healthy
+      api-introspection:
+        condition: service_healthy
+      api-cached-introspection:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    read_only: true
+    tmpfs:
+      - /tmp:uid=65534,gid=65534,mode=0700
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - prometheus-data:/prometheus
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/offboarding.rules.yml:/etc/prometheus/offboarding.rules.yml:ro
+    networks:
+      - observability
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:9090/-/healthy"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205
+    user: "472:0"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    environment:
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-replace-with-generated-secret}
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_SERVER_DOMAIN: grafana.localhost
+      GF_SERVER_ROOT_URL: https://grafana.localhost
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    read_only: true
+    tmpfs:
+      - /tmp:uid=472,gid=0,mode=0700
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - edge
+      - observability
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:3000/api/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  webapp:
+    build:
+      context: ./services/webapp
+    image: iam-access-revocation-lab-webapp:local
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=0700
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4173').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 3s
+    restart: unless-stopped
+
+  job:
+    build:
+      context: ./services/job
+    image: iam-access-revocation-lab-job:local
+    user: "1000:1000"
+    depends_on:
+      api-introspection:
+        condition: service_healthy
+      keycloak-config:
+        condition: service_completed_successfully
+    environment:
+      JOB_CLIENT_SECRET: ${JOB_CLIENT_SECRET:-replace-with-generated-secret}
+      OIDC_TOKEN_URL: http://keycloak:8080/realms/company/protocol/openid-connect/token
+      REPORTS_URL: http://api-introspection:3000/reports/run
+    read_only: true
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=0700
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - workload
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  traefik:
+    image: traefik:v3.7.17@sha256:e15b8921020b4fd81de5746b170dfceec221d2450711449f6427e4692881511a
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    depends_on:
+      api-cached-introspection:
+        condition: service_healthy
+      api-introspection:
+        condition: service_healthy
+      api-local:
+        condition: service_healthy
+      webapp:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      keycloak-config:
+        condition: service_completed_successfully
+      grafana:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:mode=0700
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./infra/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./infra/certs:/certs:ro
+    ports:
+      - "127.0.0.1:443:8443"
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+networks:
+  edge: {}
+  application:
+    internal: true
+  identity:
+    internal: true
+  workload:
+    internal: true
+  observability:
+    internal: true
+
+volumes:
+  ldap-data: {}
+  ldap-config: {}
+  keycloak-db: {}
+  prometheus-data: {}
+  grafana-data: {}
+  not-before-data: {}

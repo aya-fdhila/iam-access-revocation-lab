@@ -1,0 +1,9 @@
+# Development-only overrides will expose narrowly documented diagnostic ports
+# and verbose logs as each service is introduced.
+services:
+  ldap:
+    ports:
+      - "127.0.0.1:1389:1389"
+  keycloak:
+    ports:
+      - "127.0.0.1:9000:9000"

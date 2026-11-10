@@ -1,0 +1,43 @@
+# Local secrets and environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Generated local certificates
+infra/certs/*
+!infra/certs/README.md
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Test and tool caches
+.cache/
+.eslintcache
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local experiment scratch data
+results/raw/
+*.log
+*.tsbuildinfo
+
+# Temporary files created by atomic generators
+*.tmp.*

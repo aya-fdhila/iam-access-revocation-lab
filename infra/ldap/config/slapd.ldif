@@ -1,0 +1,91 @@
+# Explicit OpenLDAP runtime configuration for dc=iam,dc=localhost.
+# It is loaded into an ephemeral cn=config directory on every container start.
+dn: cn=config
+objectClass: olcGlobal
+cn: config
+olcPidFile: /run/slapd/slapd.pid
+olcArgsFile: /run/slapd/slapd.args
+olcLogLevel: stats
+
+dn: cn=module{0},cn=config
+objectClass: olcModuleList
+cn: module{0}
+olcModulePath: /usr/lib/ldap
+olcModuleLoad: back_mdb
+olcModuleLoad: memberof
+olcModuleLoad: refint
+olcModuleLoad: ppolicy
+
+dn: cn=schema,cn=config
+objectClass: olcSchemaConfig
+cn: schema
+
+include: file:///etc/ldap/schema/core.ldif
+include: file:///etc/ldap/schema/cosine.ldif
+include: file:///etc/ldap/schema/nis.ldif
+include: file:///etc/ldap/schema/inetorgperson.ldif
+
+dn: olcDatabase={-1}frontend,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olcFrontendConfig
+olcDatabase: {-1}frontend
+olcAccess: {0}to dn.base="" by * read
+olcAccess: {1}to dn.base="cn=Subschema" by * read
+olcAccess: {2}to * by * none
+
+dn: olcDatabase={0}config,cn=config
+objectClass: olcDatabaseConfig
+olcDatabase: {0}config
+olcAccess: {0}to * by * none
+
+dn: olcDatabase={1}mdb,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olcMdbConfig
+olcDatabase: {1}mdb
+olcDbDirectory: /var/lib/ldap
+olcSuffix: dc=iam,dc=localhost
+olcRootDN: cn=admin,dc=iam,dc=localhost
+olcDbMaxSize: 1073741824
+olcDbIndex: objectClass eq
+olcDbIndex: entryUUID eq
+olcDbIndex: entryCSN eq
+olcDbIndex: uid eq
+olcDbIndex: cn eq
+olcDbIndex: mail eq,sub
+olcDbIndex: member eq
+olcDbIndex: memberOf eq
+olcAccess: {0}to attrs=userPassword,pwdAccountLockedTime,pwdFailureTime
+  by dn.exact="cn=admin,dc=iam,dc=localhost" manage
+  by anonymous auth
+  by self auth
+  by * none
+olcAccess: {1}to *
+  by dn.exact="cn=admin,dc=iam,dc=localhost" manage
+  by dn.exact="uid=keycloak-bind,ou=service-accounts,dc=iam,dc=localhost" read
+  by self read
+  by * none
+
+dn: olcOverlay={0}memberof,olcDatabase={1}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcMemberOf
+olcOverlay: {0}memberof
+olcMemberOfDangling: ignore
+olcMemberOfRefInt: TRUE
+olcMemberOfGroupOC: groupOfNames
+olcMemberOfMemberAD: member
+olcMemberOfMemberOfAD: memberOf
+
+dn: olcOverlay={1}refint,olcDatabase={1}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcRefintConfig
+olcOverlay: {1}refint
+olcRefintAttribute: member
+olcRefintNothing: cn=admin,dc=iam,dc=localhost
+
+dn: olcOverlay={2}ppolicy,olcDatabase={1}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcPPolicyConfig
+olcOverlay: {2}ppolicy
+olcPPolicyDefault: cn=default,ou=policies,dc=iam,dc=localhost
+olcPPolicyHashCleartext: TRUE
+olcPPolicyUseLockout: TRUE

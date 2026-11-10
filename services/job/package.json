@@ -1,0 +1,23 @@
+{
+  "name": "@iam-lab/job",
+  "version": "1.0.0",
+  "description": "Scheduled Client Credentials workload for the IAM laboratory.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "format": "biome check --write .",
+    "check": "biome check . && tsc --noEmit && vitest run",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.6",
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}

@@ -1,0 +1,103 @@
+http:
+  routers:
+    keycloak-public:
+      entryPoints: [websecure]
+      rule: Host(`auth.localhost`) && (PathPrefix(`/realms/`) || PathPrefix(`/resources/`))
+      service: keycloak
+      middlewares: [security-headers]
+      tls: {}
+    keycloak-admin:
+      entryPoints: [websecure]
+      rule: Host(`admin-auth.localhost`)
+      service: keycloak
+      middlewares: [security-headers]
+      tls: {}
+    api-local:
+      entryPoints: [websecure]
+      rule: Host(`api.localhost`) && (Path(`/local`) || PathPrefix(`/local/`)) && !Path(`/local/internal`) && !PathPrefix(`/local/internal/`)
+      service: api-local
+      middlewares: [strip-api-local, security-headers]
+      tls: {}
+    api-introspection:
+      entryPoints: [websecure]
+      rule: Host(`api.localhost`) && (Path(`/introspection`) || PathPrefix(`/introspection/`)) && !Path(`/introspection/internal`) && !PathPrefix(`/introspection/internal/`)
+      service: api-introspection
+      middlewares: [strip-api-introspection, security-headers]
+      tls: {}
+    api-cached-introspection:
+      entryPoints: [websecure]
+      rule: Host(`api.localhost`) && (Path(`/cached`) || PathPrefix(`/cached/`)) && !Path(`/cached/internal`) && !PathPrefix(`/cached/internal/`)
+      service: api-cached-introspection
+      middlewares: [strip-api-cached, security-headers]
+      tls: {}
+    webapp:
+      entryPoints: [websecure]
+      rule: Host(`app.localhost`)
+      service: webapp
+      middlewares: [webapp-security-headers]
+      tls: {}
+    grafana:
+      entryPoints: [websecure]
+      rule: Host(`grafana.localhost`)
+      service: grafana
+      middlewares: [security-headers]
+      tls: {}
+  services:
+    keycloak:
+      loadBalancer:
+        servers:
+          - url: http://keycloak:8080
+    api-local:
+      loadBalancer:
+        servers:
+          - url: http://api-local:3000
+    api-introspection:
+      loadBalancer:
+        servers:
+          - url: http://api-introspection:3000
+    api-cached-introspection:
+      loadBalancer:
+        servers:
+          - url: http://api-cached-introspection:3000
+    webapp:
+      loadBalancer:
+        servers:
+          - url: http://webapp:4173
+    grafana:
+      loadBalancer:
+        servers:
+          - url: http://grafana:3000
+  middlewares:
+    strip-api-local:
+      stripPrefix:
+        prefixes: [/local]
+    strip-api-introspection:
+      stripPrefix:
+        prefixes: [/introspection]
+    strip-api-cached:
+      stripPrefix:
+        prefixes: [/cached]
+    security-headers:
+      headers:
+        contentTypeNosniff: true
+        referrerPolicy: no-referrer
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+    webapp-security-headers:
+      headers:
+        contentTypeNosniff: true
+        referrerPolicy: no-referrer
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        customResponseHeaders:
+          Permissions-Policy: "camera=(), microphone=(), geolocation=()"
+          Content-Security-Policy: "default-src 'self'; base-uri 'self'; connect-src 'self' https://api.localhost https://auth.localhost; font-src 'self'; form-action 'self' https://auth.localhost; frame-ancestors 'none'; img-src 'self'; object-src 'none'; script-src 'self'; style-src 'self'"
+
+tls:
+  certificates:
+    - certFile: /certs/localhost.pem
+      keyFile: /certs/localhost-key.pem
+  options:
+    default:
+      minVersion: VersionTLS12
+      sniStrict: true

@@ -1,0 +1,4 @@
+mode,request_count,concurrency,successful_requests,throughput_rps,latency_p50_ms,latency_p95_ms,keycloak_calls,keycloak_calls_per_request,environment
+local,1000,10,1000,1710.136,5.344,10.501,0,0.000000,"{""cpu_count"":""16"",""docker_server"":""29.1.3"",""platform"":""Linux 7.0.0-42-generic"",""python"":""3.14.4""}"
+introspection,1000,10,1000,1230.949,6.815,12.070,1000,1.000000,"{""cpu_count"":""16"",""docker_server"":""29.1.3"",""platform"":""Linux 7.0.0-42-generic"",""python"":""3.14.4""}"
+cached,1000,10,1000,1437.010,6.424,12.479,8,0.008000,"{""cpu_count"":""16"",""docker_server"":""29.1.3"",""platform"":""Linux 7.0.0-42-generic"",""python"":""3.14.4""}"

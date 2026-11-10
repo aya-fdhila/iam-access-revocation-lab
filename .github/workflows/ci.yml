@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+          cache: npm
+          cache-dependency-path: |
+            services/api/package-lock.json
+            services/job/package-lock.json
+            services/webapp/package-lock.json
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: tests/requirements.txt
+      - name: Install locked Node.js dependencies
+        run: |
+          npm --prefix services/api ci
+          npm --prefix services/webapp ci
+          npm --prefix services/job ci
+      - name: Run repository validation floor
+        run: CHECK_BASE_REF=origin/main make check
+
+  supply-chain:
+    name: Supply chain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Build and scan project artifacts
+        run: make supply-chain
+
+  clean-clone:
+    name: Clean clone
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      COMPOSE_PROJECT_NAME: iam-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+          cache: npm
+          cache-dependency-path: |
+            services/api/package-lock.json
+            services/job/package-lock.json
+            services/webapp/package-lock.json
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: tests/requirements.txt
+      - name: Install clean-clone prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes mkcert libnss3-tools
+          npm --prefix services/api ci
+          npm --prefix services/webapp ci
+          npm --prefix services/job ci
+      - name: Align runtime file ownership with the runner
+        run: |
+          echo "LOCAL_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "LOCAL_GID=$(id -g)" >> "$GITHUB_ENV"
+      - name: Generate local-only secrets and certificates
+        run: |
+          make secrets
+          make certs
+      - name: Start complete stack
+        run: make up
+      - name: Run identity and authorization acceptance
+        run: |
+          make ldap-test
+          make identity-test
+          make test
+      - name: Show service state and bounded failure logs
+        if: failure()
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml ps
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml logs --no-color --tail 200
+      - name: Remove ephemeral CI runtime
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml down --volumes --remove-orphans

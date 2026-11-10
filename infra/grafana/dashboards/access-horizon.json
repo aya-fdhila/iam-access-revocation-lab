@@ -1,0 +1,146 @@
+{
+  "annotations": { "list": [] },
+  "description": "Bounded, non-secret IAM validation and offboarding evidence.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "sum by (mode, status_class) (rate(iam_api_http_request_duration_seconds_count[$__rate_interval]))",
+          "legendFormat": "{{mode}} · {{status_class}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Request rate and outcomes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, mode) (rate(iam_api_http_request_duration_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "request p95 · {{mode}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, mode) (rate(iam_api_authentication_duration_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "authentication p95 · {{mode}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Request and authentication p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 8 },
+      "id": 3,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "sum by (mode, outcome) (increase(iam_api_authentication_results_total[$__range]))",
+          "legendFormat": "{{mode}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Authentication decisions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "decimals": 3, "min": 0, "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 8 },
+      "id": 4,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "sum by (mode) (rate(iam_api_keycloak_calls_total{operation=\"introspection\"}[$__rate_interval])) / clamp_min(sum by (mode) (rate(iam_api_http_request_duration_seconds_count[$__rate_interval])), 0.001)",
+          "legendFormat": "introspection · {{mode}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (mode) (rate(iam_api_jwks_refreshes_total[$__rate_interval])) / clamp_min(sum by (mode) (rate(iam_api_http_request_duration_seconds_count[$__rate_interval])), 0.001)",
+          "legendFormat": "JWKS · {{mode}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Identity-provider calls per request",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "decimals": 3, "min": 0, "max": 1, "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 8 },
+      "id": 5,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "sum(rate(iam_api_introspection_cache_total{outcome=\"hit\"}[$__rate_interval])) / clamp_min(sum(rate(iam_api_introspection_cache_total[$__rate_interval])), 0.001)",
+          "legendFormat": "cache hit ratio",
+          "refId": "A"
+        }
+      ],
+      "title": "Introspection cache behavior",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "decimals": 3, "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 15 },
+      "id": 6,
+      "options": { "displayMode": "gradient", "minVizHeight": 16, "minVizWidth": 8, "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true },
+      "targets": [
+        {
+          "expr": "iam_offboarding_observed_delay_seconds{element=\"api_authenticated\"}",
+          "instant": true,
+          "legendFormat": "{{offboarding_mode}} · {{validation_mode}} · {{lifetime_s}}s",
+          "refId": "A"
+        }
+      ],
+      "title": "Measured access rejection delay from T1",
+      "type": "bargauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 15 },
+      "id": 7,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
+      "targets": [
+        {
+          "expr": "sum(up)",
+          "instant": true,
+          "legendFormat": "healthy targets",
+          "refId": "A"
+        }
+      ],
+      "title": "Healthy scrape targets",
+      "type": "stat"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 42,
+  "tags": ["iam", "revocation", "security"],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Access Horizon — IAM Observability",
+  "uid": "iam-access-revocation",
+  "version": 1,
+  "weekStart": ""
+}

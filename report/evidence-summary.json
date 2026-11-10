@@ -1,0 +1,269 @@
+{
+  "generated_from": [
+    "results/matrix.csv",
+    "results/offboarding.csv",
+    "results/bench.csv"
+  ],
+  "metrics": {
+    "automated_cached_auth_t0_mean": {
+      "calculation": "arithmetic mean of delay_from_t0_s",
+      "selection": "offboarding_mode=automated; validation_mode=cached; element=api_authenticated; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 5.0
+    },
+    "automated_cached_auth_t1_mean": {
+      "calculation": "arithmetic mean of delay_from_t1_s",
+      "selection": "offboarding_mode=automated; validation_mode=cached; element=api_authenticated; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 3.0
+    },
+    "automated_introspection_auth_t1_mean": {
+      "calculation": "arithmetic mean of delay_from_t1_s",
+      "selection": "offboarding_mode=automated; validation_mode=introspection; element=api_authenticated; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 0.383
+    },
+    "automated_local_auth_t1_max": {
+      "calculation": "maximum delay_from_t1_s",
+      "selection": "offboarding_mode=automated; validation_mode=local; element=api_authenticated; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 0.428
+    },
+    "automated_local_auth_t1_mean": {
+      "calculation": "arithmetic mean of delay_from_t1_s",
+      "selection": "offboarding_mode=automated; validation_mode=local; element=api_authenticated; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 0.383
+    },
+    "automated_new_login_t1_mean": {
+      "calculation": "arithmetic mean of delay_from_t1_s",
+      "selection": "offboarding_mode=automated; validation_mode=identity; element=new_login; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 0.383
+    },
+    "automated_refresh_t1_mean": {
+      "calculation": "arithmetic mean of delay_from_t1_s",
+      "selection": "offboarding_mode=automated; validation_mode=identity; element=refresh_chain; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 0.383
+    },
+    "baseline_cached_document_t0_mean": {
+      "calculation": "arithmetic mean of delay_from_t0_s",
+      "selection": "offboarding_mode=baseline; validation_mode=cached; element=api_document_access; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 5.0
+    },
+    "baseline_introspection_document_t0_mean": {
+      "calculation": "arithmetic mean of delay_from_t0_s",
+      "selection": "offboarding_mode=baseline; validation_mode=introspection; element=api_document_access; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 0.141
+    },
+    "baseline_local_auth_t1_mean_300s": {
+      "calculation": "arithmetic mean of delay_from_t1_s",
+      "selection": "offboarding_mode=baseline; validation_mode=local; element=api_authenticated; lifetime_s=300; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 297.667
+    },
+    "baseline_local_auth_t1_mean_60s": {
+      "calculation": "arithmetic mean of delay_from_t1_s",
+      "selection": "offboarding_mode=baseline; validation_mode=local; element=api_authenticated; lifetime_s=60; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 58.0
+    },
+    "baseline_local_auth_t1_mean_900s": {
+      "calculation": "arithmetic mean of delay_from_t1_s",
+      "selection": "offboarding_mode=baseline; validation_mode=local; element=api_authenticated; lifetime_s=900; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 898.0
+    },
+    "baseline_new_login_t1_mean": {
+      "calculation": "arithmetic mean of delay_from_t1_s",
+      "selection": "offboarding_mode=baseline; validation_mode=identity; element=new_login; outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "seconds",
+      "value": 0.146
+    },
+    "baseline_refresh_censored": {
+      "calculation": "count",
+      "selection": "offboarding_mode=baseline; validation_mode=identity; element=refresh_chain; outcome=censored",
+      "source": "results/offboarding.csv",
+      "unit": "chains",
+      "value": 9
+    },
+    "bench_cached_keycloak_calls_per_request": {
+      "calculation": "keycloak_calls_per_request",
+      "selection": "mode=cached",
+      "source": "results/bench.csv",
+      "unit": "calls/request",
+      "value": 0.008
+    },
+    "bench_cached_latency_p50_ms": {
+      "calculation": "latency_p50_ms",
+      "selection": "mode=cached",
+      "source": "results/bench.csv",
+      "unit": "milliseconds",
+      "value": 6.424
+    },
+    "bench_cached_latency_p95_ms": {
+      "calculation": "latency_p95_ms",
+      "selection": "mode=cached",
+      "source": "results/bench.csv",
+      "unit": "milliseconds",
+      "value": 12.479
+    },
+    "bench_cached_throughput_rps": {
+      "calculation": "throughput_rps",
+      "selection": "mode=cached",
+      "source": "results/bench.csv",
+      "unit": "requests/second",
+      "value": 1437.01
+    },
+    "bench_introspection_keycloak_calls_per_request": {
+      "calculation": "keycloak_calls_per_request",
+      "selection": "mode=introspection",
+      "source": "results/bench.csv",
+      "unit": "calls/request",
+      "value": 1.0
+    },
+    "bench_introspection_latency_p50_ms": {
+      "calculation": "latency_p50_ms",
+      "selection": "mode=introspection",
+      "source": "results/bench.csv",
+      "unit": "milliseconds",
+      "value": 6.815
+    },
+    "bench_introspection_latency_p95_ms": {
+      "calculation": "latency_p95_ms",
+      "selection": "mode=introspection",
+      "source": "results/bench.csv",
+      "unit": "milliseconds",
+      "value": 12.07
+    },
+    "bench_introspection_throughput_rps": {
+      "calculation": "throughput_rps",
+      "selection": "mode=introspection",
+      "source": "results/bench.csv",
+      "unit": "requests/second",
+      "value": 1230.949
+    },
+    "bench_local_keycloak_calls_per_request": {
+      "calculation": "keycloak_calls_per_request",
+      "selection": "mode=local",
+      "source": "results/bench.csv",
+      "unit": "calls/request",
+      "value": 0.0
+    },
+    "bench_local_latency_p50_ms": {
+      "calculation": "latency_p50_ms",
+      "selection": "mode=local",
+      "source": "results/bench.csv",
+      "unit": "milliseconds",
+      "value": 5.344
+    },
+    "bench_local_latency_p95_ms": {
+      "calculation": "latency_p95_ms",
+      "selection": "mode=local",
+      "source": "results/bench.csv",
+      "unit": "milliseconds",
+      "value": 10.501
+    },
+    "bench_local_throughput_rps": {
+      "calculation": "throughput_rps",
+      "selection": "mode=local",
+      "source": "results/bench.csv",
+      "unit": "requests/second",
+      "value": 1710.136
+    },
+    "matrix_passes": {
+      "calculation": "count",
+      "selection": "outcome=pass",
+      "source": "results/matrix.csv",
+      "unit": "rows",
+      "value": 177
+    },
+    "matrix_rows": {
+      "calculation": "count",
+      "selection": "all rows",
+      "source": "results/matrix.csv",
+      "unit": "rows",
+      "value": 177
+    },
+    "matrix_status_200": {
+      "calculation": "count",
+      "selection": "obtained_status=200",
+      "source": "results/matrix.csv",
+      "unit": "rows",
+      "value": 75
+    },
+    "matrix_status_201": {
+      "calculation": "count",
+      "selection": "obtained_status=201",
+      "source": "results/matrix.csv",
+      "unit": "rows",
+      "value": 15
+    },
+    "matrix_status_204": {
+      "calculation": "count",
+      "selection": "obtained_status=204",
+      "source": "results/matrix.csv",
+      "unit": "rows",
+      "value": 9
+    },
+    "matrix_status_401": {
+      "calculation": "count",
+      "selection": "obtained_status=401",
+      "source": "results/matrix.csv",
+      "unit": "rows",
+      "value": 30
+    },
+    "matrix_status_403": {
+      "calculation": "count",
+      "selection": "obtained_status=403",
+      "source": "results/matrix.csv",
+      "unit": "rows",
+      "value": 48
+    },
+    "offboarding_censored": {
+      "calculation": "count",
+      "selection": "outcome=censored",
+      "source": "results/offboarding.csv",
+      "unit": "rows",
+      "value": 9
+    },
+    "offboarding_observed": {
+      "calculation": "count",
+      "selection": "outcome=observed",
+      "source": "results/offboarding.csv",
+      "unit": "rows",
+      "value": 135
+    },
+    "offboarding_rows": {
+      "calculation": "count",
+      "selection": "all rows",
+      "source": "results/offboarding.csv",
+      "unit": "rows",
+      "value": 144
+    },
+    "offboarding_runs": {
+      "calculation": "count distinct",
+      "selection": "distinct run_id",
+      "source": "results/offboarding.csv",
+      "unit": "runs",
+      "value": 18
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,3 @@
+# Production-style local overrides will route through Traefik HTTPS and run
+# Keycloak in start mode. This is a lab profile, not a public deployment.
+services: {}

@@ -1,0 +1,147 @@
+dn: dc=iam,dc=localhost
+objectClass: top
+objectClass: dcObject
+objectClass: organization
+o: IAM Access Revocation Lab
+dc: iam
+
+dn: cn=admin,dc=iam,dc=localhost
+objectClass: simpleSecurityObject
+objectClass: organizationalRole
+cn: admin
+description: Directory administrator for controlled lab operations
+userPassword: {{LDAP_ADMIN_PASSWORD_HASH}}
+
+dn: ou=people,dc=iam,dc=localhost
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=iam,dc=localhost
+objectClass: organizationalUnit
+ou: groups
+
+dn: ou=service-accounts,dc=iam,dc=localhost
+objectClass: organizationalUnit
+ou: service-accounts
+
+dn: ou=policies,dc=iam,dc=localhost
+objectClass: organizationalUnit
+ou: policies
+
+dn: cn=default,ou=policies,dc=iam,dc=localhost
+objectClass: top
+objectClass: organizationalRole
+objectClass: pwdPolicy
+cn: default
+pwdAttribute: userPassword
+pwdAllowUserChange: FALSE
+pwdCheckQuality: 0
+pwdExpireWarning: 600
+pwdFailureCountInterval: 0
+pwdGraceAuthNLimit: 0
+pwdInHistory: 5
+pwdLockout: TRUE
+pwdLockoutDuration: 0
+pwdMaxAge: 0
+pwdMaxFailure: 3
+pwdMinAge: 0
+pwdMinLength: 12
+pwdMustChange: FALSE
+pwdSafeModify: FALSE
+
+dn: uid=keycloak-bind,ou=service-accounts,dc=iam,dc=localhost
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: keycloak-bind
+cn: Keycloak Bind
+sn: Bind
+description: Read-only service identity for Keycloak LDAP federation
+userPassword: {{LDAP_BIND_PASSWORD_HASH}}
+
+dn: uid=aya,ou=people,dc=iam,dc=localhost
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: aya
+cn: Aya Fdhila
+givenName: Aya
+sn: Fdhila
+displayName: Aya Fdhila
+mail: aya@iam.localhost
+userPassword: {{LDAP_USER_PASSWORD_HASH}}
+
+dn: uid=ali,ou=people,dc=iam,dc=localhost
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: ali
+cn: Ali Mansouri
+givenName: Ali
+sn: Mansouri
+displayName: Ali Mansouri
+mail: ali@iam.localhost
+userPassword: {{LDAP_USER_PASSWORD_HASH}}
+
+dn: uid=yassmine,ou=people,dc=iam,dc=localhost
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: yassmine
+cn: Yassmine Ghali
+givenName: Yassmine
+sn: Ghali
+displayName: Yassmine Ghali
+mail: yassmine@iam.localhost
+userPassword: {{LDAP_USER_PASSWORD_HASH}}
+
+dn: uid=marwen,ou=people,dc=iam,dc=localhost
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: marwen
+cn: Marwen Ben Salem
+givenName: Marwen
+sn: Ben Salem
+displayName: Marwen Ben Salem
+mail: marwen@iam.localhost
+userPassword: {{LDAP_USER_PASSWORD_HASH}}
+
+dn: uid=marwa,ou=people,dc=iam,dc=localhost
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: marwa
+cn: Marwa Trabelsi
+givenName: Marwa
+sn: Trabelsi
+displayName: Marwa Trabelsi
+mail: marwa@iam.localhost
+userPassword: {{LDAP_USER_PASSWORD_HASH}}
+
+dn: cn=employees,ou=groups,dc=iam,dc=localhost
+objectClass: top
+objectClass: groupOfNames
+cn: employees
+description: Standard employee access
+member: cn=admin,dc=iam,dc=localhost
+
+dn: cn=managers,ou=groups,dc=iam,dc=localhost
+objectClass: top
+objectClass: groupOfNames
+cn: managers
+description: Manager access
+member: cn=admin,dc=iam,dc=localhost
+
+dn: cn=admins,ou=groups,dc=iam,dc=localhost
+objectClass: top
+objectClass: groupOfNames
+cn: admins
+description: Administrative application access
+member: cn=admin,dc=iam,dc=localhost

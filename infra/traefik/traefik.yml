@@ -1,0 +1,43 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+  aliasHeadersStrategy: reject
+
+entryPoints:
+  websecure:
+    address: ":8443"
+    http:
+      encodedCharacters:
+        allowEncodedBackslash: false
+        allowEncodedHash: false
+        allowEncodedNullCharacter: false
+        allowEncodedPercent: false
+        allowEncodedQuestionMark: false
+        allowEncodedSemicolon: false
+        allowEncodedSlash: false
+  health:
+    address: ":8082"
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+api:
+  dashboard: false
+
+ping:
+  entryPoint: health
+
+log:
+  format: json
+  level: INFO
+
+accessLog:
+  format: json
+  fields:
+    headers:
+      defaultMode: drop
+      names:
+        User-Agent: keep
+        Authorization: drop
