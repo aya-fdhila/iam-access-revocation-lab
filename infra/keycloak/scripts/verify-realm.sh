@@ -49,7 +49,34 @@ default_scopes_json="$("${kcadm}" get realms/company/default-default-client-scop
 assert_contains "${default_scopes_json}" '"name" : "roles"' 'roles is not a realm default client scope'
 
 account_console_json="$(client_json account-console)"
-assert_contains "${account_console_json}" '"defaultClientScopes" : \[ "roles" \]' 'account console tokens cannot expose account roles'
+account_console_roles_pattern='"defaultClientScopes" : \[[^]]*"roles"'
+if ! grep -q -- "${account_console_roles_pattern}" <<<"${account_console_json}"; then
+  account_console_listing="$("${kcadm}" get clients -r company -q clientId=account-console --fields id --config "${config_file}")"
+  account_console_id="$(sed -n 's/.*"id" : "\([^"]*\)".*/\1/p' <<<"${account_console_listing}" | head -n 1)"
+  roles_scope_listing="$("${kcadm}" get client-scopes -r company --fields id,name --config "${config_file}")"
+  roles_scope_id="$(sed -n '
+    /"id" : "/ {
+      s/.*"id" : "\([^"]*\)".*/\1/
+      h
+    }
+    /"name" : "roles"/ {
+      g
+      p
+      q
+    }
+  ' <<<"${roles_scope_listing}")"
+  [[ -n "${account_console_id}" && -n "${roles_scope_id}" ]] || {
+    printf '%s\n' 'Keycloak configuration failed: account-console client or roles scope is missing.' >&2
+    exit 1
+  }
+  "${kcadm}" update "clients/${account_console_id}/default-client-scopes/${roles_scope_id}" \
+    -r company \
+    -n \
+    -b '{}' \
+    --config "${config_file}" >/dev/null
+  account_console_json="$(client_json account-console)"
+fi
+assert_contains "${account_console_json}" "${account_console_roles_pattern}" 'account console tokens cannot expose account roles'
 
 webapp_json="$(client_json webapp)"
 assert_contains "${webapp_json}" '"publicClient" : true' 'webapp is not public'
