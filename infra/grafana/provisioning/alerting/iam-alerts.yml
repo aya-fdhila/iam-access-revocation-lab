@@ -1,0 +1,154 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: IAM platform health
+    folder: IAM Access Revocation Lab
+    interval: 30s
+    rules:
+      - uid: iam-target-down
+        title: IAM target unavailable
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: 'min(up{job=~"api|keycloak"})'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Error
+        for: 1m
+        annotations:
+          description: At least one API or Keycloak Prometheus target has been unavailable for one minute.
+          summary: An IAM service is unavailable
+        labels:
+          severity: critical
+        isPaused: false
+
+      - uid: iam-auth-failure-rate
+        title: High authentication failure rate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: 'sum(rate(iam_api_authentication_results_total{outcome=~"rejected|unavailable"}[2m])) / clamp_min(sum(rate(iam_api_authentication_results_total[2m])), 0.001)'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.2]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          description: More than 20% of bearer authentications have failed during the last two minutes.
+          summary: Authentication failures exceed 20%
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: iam-api-p95-latency
+        title: High API p95 latency
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: 'histogram_quantile(0.95, sum by (le) (rate(iam_api_http_request_duration_seconds_bucket[2m])))'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.25]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 2m
+        annotations:
+          description: The API p95 response time has exceeded 250 ms for two minutes.
+          summary: API p95 latency exceeds 250 ms
+        labels:
+          severity: warning
+        isPaused: false
