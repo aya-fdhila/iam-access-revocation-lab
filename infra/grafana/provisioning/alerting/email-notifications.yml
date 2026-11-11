@@ -1,0 +1,23 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: IAM email notifications
+    receivers:
+      - uid: iam-email-notifications
+        type: email
+        disableResolveMessage: false
+        settings:
+          addresses: $GRAFANA_ALERT_EMAIL
+          singleEmail: true
+          subject: "[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
+
+policies:
+  - orgId: 1
+    receiver: IAM email notifications
+    group_by:
+      - grafana_folder
+      - alertname
+    group_wait: 10s
+    group_interval: 5m
+    repeat_interval: 4h

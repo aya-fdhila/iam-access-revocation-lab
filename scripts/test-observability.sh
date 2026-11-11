@@ -30,6 +30,49 @@ mapfile -t prometheus_networks < <(docker inspect "${prometheus_id}" | jq -r '.[
 grafana_health="$(curl --fail --silent --show-error --cacert "${cert_file}" https://grafana.localhost/api/health)"
 jq -e '.database == "ok"' <<<"${grafana_health}" >/dev/null
 
+grafana_admin_password="${GRAFANA_ADMIN_PASSWORD:-}"
+if [[ -z "${grafana_admin_password}" ]]; then
+  grafana_admin_password="$(awk -F= '$1 == "GRAFANA_ADMIN_PASSWORD" {sub(/^[^=]*=/, ""); print; exit}' .env)"
+fi
+[[ -n "${grafana_admin_password}" && "${grafana_admin_password}" != replace-with-generated-secret ]] || {
+  printf '%s\n' 'Grafana administrator credentials are not configured.' >&2
+  exit 2
+}
+
+grafana_admin_get() {
+  curl --config - --fail --silent --show-error --cacert "${cert_file}" "$1" <<EOF
+user = "admin:${grafana_admin_password}"
+EOF
+}
+
+alert_rules="$(grafana_admin_get https://grafana.localhost/api/v1/provisioning/alert-rules)"
+jq -e '
+  ([.[].uid] | sort) == ([
+    "iam-api-p95-latency",
+    "iam-auth-failure-rate",
+    "iam-target-down"
+  ] | sort)
+' <<<"${alert_rules}" >/dev/null
+
+contact_points="$(grafana_admin_get https://grafana.localhost/api/v1/provisioning/contact-points)"
+jq -e '
+  any(.[];
+    .uid == "iam-email-notifications" and
+    .name == "IAM email notifications" and
+    .type == "email" and
+    .settings.addresses != ""
+  )
+' <<<"${contact_points}" >/dev/null
+
+notification_policy="$(grafana_admin_get https://grafana.localhost/api/v1/provisioning/policies)"
+jq -e '
+  .receiver == "IAM email notifications" and
+  (.group_by | sort) == (["alertname", "grafana_folder"] | sort) and
+  .group_wait == "10s" and
+  .group_interval == "5m" and
+  .repeat_interval == "4h"
+' <<<"${notification_policy}" >/dev/null
+
 datasource="$(curl --fail --silent --show-error --cacert "${cert_file}" https://grafana.localhost/api/datasources/uid/prometheus)"
 jq -e '.uid == "prometheus" and .access == "proxy" and .url == "http://prometheus:9090"' <<<"${datasource}" >/dev/null
 
@@ -108,4 +151,4 @@ done < .env
 "${compose[@]}" exec -T prometheus promtool check config /etc/prometheus/prometheus.yml >/dev/null
 "${compose[@]}" exec -T prometheus promtool check rules /etc/prometheus/offboarding.rules.yml >/dev/null
 
-printf '%s\n' 'Observability acceptance passed: private healthy targets, bounded metrics, and provisioned Grafana dashboard.'
+printf '%s\n' 'Observability acceptance passed: private healthy targets, bounded metrics, and provisioned Grafana dashboard and alerting.'

@@ -345,6 +345,14 @@ services:
       GF_SECURITY_DISABLE_GRAVATAR: "true"
       GF_SERVER_DOMAIN: grafana.localhost
       GF_SERVER_ROOT_URL: https://grafana.localhost
+      GF_SMTP_ENABLED: ${GRAFANA_SMTP_ENABLED:-false}
+      GF_SMTP_FROM_ADDRESS: ${GRAFANA_SMTP_FROM_ADDRESS:-alerts@example.invalid}
+      GF_SMTP_FROM_NAME: Access Horizon
+      GF_SMTP_HOST: ${GRAFANA_SMTP_HOST:-smtp.gmail.com:587}
+      GF_SMTP_PASSWORD: ${GRAFANA_SMTP_PASSWORD:-}
+      GF_SMTP_STARTTLS_POLICY: MandatoryStartTLS
+      GF_SMTP_USER: ${GRAFANA_SMTP_USER:-}
+      GRAFANA_ALERT_EMAIL: ${GRAFANA_ALERT_EMAIL:-alerts@example.invalid}
       GF_USERS_ALLOW_SIGN_UP: "false"
     read_only: true
     tmpfs:
